@@ -36,10 +36,10 @@
       "parameters": {
         "operation": "toBinary",
         "sourceProperty": "contentString",
+        "binaryPropertyName": "file",
         "options": {
           "fileName": "={{ $json.fileName }}",
-          "mimeType": "application/json",
-          "binaryPropertyName": "file"
+          "mimeType": "application/json"
         }
       },
       "type": "n8n-nodes-base.convertToFile",
