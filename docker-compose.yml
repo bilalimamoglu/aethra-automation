@@ -86,6 +86,7 @@ services:
       # n8n (CLI import için gerekli)
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
       DB_TYPE: postgresdb
+      N8N_OWNER_EMAIL: ${N8N_OWNER_EMAIL}
 
       # MinIO
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}

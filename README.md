@@ -20,3 +20,9 @@ This repository contains a **n8n + Postgres + MinIO (S3-compatible)** stack for 
    MinIO Console: http://localhost:9001  
 4) Define **Credentials** in the n8n UI (Postgres, S3/MinIO)  
 5) Optionally, import and test the `00_hello_webhook.json` workflow.
+
+
+docker compose down -v --remove-orphans  # tüm volume'ları da sil, cache kalmasın
+docker compose build --no-cache seed
+docker compose up -d postgres minio n8n
+docker compose run --rm seed   

@@ -35,11 +35,13 @@ mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >
 mc mb --ignore-existing "local/$MINIO_BUCKET" || true
 echo "[seed] Bucket ensured: $MINIO_BUCKET"
 
-# Import credentials (each file is a single credential)
-if [ -d /seed/credentials ]; then
-  echo "[seed] Importing credentials..."
-  n8n import:credentials --input "/seed/credentials" --separate || true
-fi
+
+OWNER_ID=$(PGPASSWORD="$DB_POSTGRESDB_PASSWORD" psql \
+  -h "$DB_POSTGRESDB_HOST" -p "$DB_POSTGRESDB_PORT" \
+  -U "$DB_POSTGRESDB_USER" -d "$DB_POSTGRESDB_DATABASE" -t -A -c \
+  "select id from \"user\" where email='${N8N_OWNER_EMAIL}' limit 1;" | tr -d '[:space:]')
+
+n8n import:credentials --input "/seed/credentials" --separate --userId "$OWNER_ID" || true
 
 # Import workflows (each file is a single workflow)
 if [ -d /seed/workflows ]; then

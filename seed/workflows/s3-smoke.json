@@ -1,5 +1,5 @@
 {
-  "name": "S3 Smoke (Set -> ConvertToFile -> S3)",
+  "name": "S3 Smoke (Manual -> Set -> ConvertToFile -> S3 Upload)",
   "nodes": [
     {
       "parameters": {},
@@ -60,7 +60,10 @@
         "fileName": "={{ $json.fileName }}"
       },
       "credentials": {
-        "s3": { "name": "Aethra S3 (MinIO Local)" }
+        "s3": {
+          "id": "8b6f3c41-5d62-4a9c-9e0e-2f3a6c7d8e90",
+          "name": "Aethra S3 (MinIO Local)"
+        }
       },
       "id": "S3Upload",
       "position": [960, 300]
