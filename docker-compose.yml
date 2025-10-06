@@ -1,0 +1,102 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: aethra-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio:latest
+    container_name: aethra-minio
+    restart: unless-stopped
+    command: server /data --console-address ":${MINIO_CONSOLE_PORT}"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_PORT}:9000"         # S3 API
+      - "${MINIO_CONSOLE_PORT}:9001" # Web console
+    volumes:
+      - minio_data:/data
+
+  n8n:
+    image: n8nio/n8n:1.113.3
+    container_name: aethra-n8n
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_started
+      minio:
+        condition: service_started
+    environment:
+      # Host / URL
+      N8N_HOST: ${N8N_HOST}
+      N8N_PORT: ${N8N_PORT}
+      N8N_PROTOCOL: ${N8N_PROTOCOL}
+      WEBHOOK_URL: ${WEBHOOK_URL}
+
+      # Encryption key
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+
+      # Postgres
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB}
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      # Dev-friendly (opsiyonel)
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      N8N_SECURE_COOKIE: "false"
+      N8N_SESSION_COOKIE_SAMESITE: "lax"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+
+    ports:
+      - "${N8N_PORT}:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+  # Tek seferlik seed job: owner signup tamamlanınca bucket + import yapar
+  seed:
+    build: ./seed
+    container_name: aethra-seed
+    depends_on:
+      postgres:
+        condition: service_started
+      minio:
+        condition: service_started
+      n8n:
+        condition: service_started
+    environment:
+      # Postgres (owner setup kontrolü ve n8n CLI için gerekli)
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB}
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      # n8n (CLI import için gerekli)
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      DB_TYPE: postgresdb
+
+      # MinIO
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+
+    volumes:
+      - ./seed:/seed:ro
+    restart: "no"
+
+volumes:
+  pg_data:
+  minio_data:
+  n8n_data:
