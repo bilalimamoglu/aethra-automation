@@ -1,0 +1,18 @@
+{
+  "id": "${GDRIVE_OAUTH_ID}",
+  "name": "Aethra Google Drive (OAuth2)",
+  "type": "googleDriveOAuth2Api",
+  "nodesAccess": [{ "nodeType": "n8n-nodes-base.googleDrive" }],
+  "data": {
+    "clientId": "${GOOGLE_OAUTH_CLIENT_ID}",
+    "clientSecret": "${GOOGLE_OAUTH_CLIENT_SECRET}",
+    "redirectUri": "${GOOGLE_OAUTH_REDIRECT_URI}",
+    "oauthTokenData": {
+      "access_token": "${GOOGLE_OAUTH_ACCESS_TOKEN}",
+      "refresh_token": "${GOOGLE_OAUTH_REFRESH_TOKEN}",
+      "scope": "${GOOGLE_OAUTH_SCOPE}",
+      "token_type": "Bearer",
+      "expiry_date": 0
+    }
+  }
+}

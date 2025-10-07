@@ -1,0 +1,55 @@
+{
+  "name": "Drive OAuth Dev Copy (first item only)",
+  "nodes": [
+    { "parameters": {}, "id": "manual", "name": "Manual Trigger", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "position": [300,220] },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "returnAll": false,
+        "limit": 1,
+        "filter": { "folderId": { "__rl": true, "value": "${GDRIVE_DEV_SOURCE}", "mode": "id" } },
+        "options": { "useSharedDrive": true, "supportsAllDrives": true, "includeItemsFromAllDrives": true }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [540,220],
+      "id": "list_source",
+      "name": "List in dev_source (first)",
+      "credentials": { "googleDriveOAuth2Api": { "id": "${GDRIVE_OAUTH_ID}", "name": "Aethra Google Drive (OAuth2)" } }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": { "__rl": true, "value": "={{ $json.id }}", "mode": "id" },
+        "options": { "useSharedDrive": true, "supportsAllDrives": true }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [800,220],
+      "id": "download",
+      "name": "Download file",
+      "credentials": { "googleDriveOAuth2Api": { "id": "${GDRIVE_OAUTH_ID}", "name": "Aethra Google Drive (OAuth2)" } }
+    },
+    {
+      "parameters": {
+        "name": "={{ $node['List in dev_source (first)'].json.name || 'first-file' }}",
+        "driveId": { "__rl": true, "value": "${GDRIVE_SHARED_ID}", "mode": "id" },
+        "folderId": { "__rl": true, "value": "${GDRIVE_DEV_TARGET}", "mode": "id" },
+        "binaryPropertyName": "data",
+        "options": { "useSharedDrive": true, "supportsAllDrives": true }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1060,220],
+      "id": "upload",
+      "name": "Upload to dev_target",
+      "credentials": { "googleDriveOAuth2Api": { "id": "${GDRIVE_OAUTH_ID}", "name": "Aethra Google Drive (OAuth2)" } }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": { "main": [[{ "node": "List in dev_source (first)", "type": "main", "index": 0 }]] },
+    "List in dev_source (first)": { "main": [[{ "node": "Download file", "type": "main", "index": 0 }]] },
+    "Download file": { "main": [[{ "node": "Upload to dev_target", "type": "main", "index": 0 }]] }
+  },
+  "active": false
+}

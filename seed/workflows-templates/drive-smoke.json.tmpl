@@ -1,0 +1,64 @@
+{
+  "name": "Drive Dev Copy (source→target)",
+  "nodes": [
+    { "parameters": {}, "id": "manual", "name": "Manual Trigger", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "position": [300,220] },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "returnAll": true,
+        "filter": { "folderId": { "__rl": true, "value": "${GDRIVE_DEV_SOURCE}", "mode": "id" } },
+        "options": { "useSharedDrive": true, "driveId": "${GDRIVE_SHARED_ID}", "supportsAllDrives": true, "includeItemsFromAllDrives": true, "corpora": "drive" }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [540,220],
+      "id": "list_source",
+      "name": "List in dev_source",
+      "credentials": { "googleDriveServiceAccount": { "id": "${GDRIVE_SERVICE_ID}", "name": "Aethra Google Drive (Service Account)" } }
+    },
+    {
+      "parameters": { "options": { "batchSize": 1 } },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [780,220],
+      "id": "split_one",
+      "name": "Take first item"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": { "__rl": true, "value": "={{ $json.id }}", "mode": "id" },
+        "options": { "useSharedDrive": true, "driveId": "${GDRIVE_SHARED_ID}", "supportsAllDrives": true }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1020,220],
+      "id": "download",
+      "name": "Download file",
+      "credentials": { "googleDriveServiceAccount": { "id": "${GDRIVE_SERVICE_ID}", "name": "Aethra Google Drive (Service Account)" } }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "upload",
+        "fileName": "={{ $json.name }}",
+        "binaryPropertyName": "data",
+        "parents": ["${GDRIVE_DEV_TARGET}"],
+        "options": { "useSharedDrive": true, "driveId": "${GDRIVE_SHARED_ID}", "supportsAllDrives": true }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1260,220],
+      "id": "upload",
+      "name": "Upload to dev_target",
+      "credentials": { "googleDriveServiceAccount": { "id": "${GDRIVE_SERVICE_ID}", "name": "Aethra Google Drive (Service Account)" } }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": { "main": [[{ "node": "List in dev_source", "type": "main", "index": 0 }]] },
+    "List in dev_source": { "main": [[{ "node": "Take first item", "type": "main", "index": 0 }]] },
+    "Take first item": { "main": [[{ "node": "Download file", "type": "main", "index": 0 }], []] },
+    "Download file": { "main": [[{ "node": "Upload to dev_target", "type": "main", "index": 0 }]] }
+  },
+  "active": false
+}

@@ -1,0 +1,12 @@
+{
+  "id": "${GDRIVE_SERVICE_ID}",
+  "name": "Aethra Google Drive (Service Account)",
+  "type": "googleServiceAccount",
+  "nodesAccess": [{ "nodeType": "n8n-nodes-base.googleDrive" }],
+  "data": {
+    "region": "${GDRIVE_REGION}",
+    "email": "${GDRIVE_SERVICE_EMAIL}",
+    "privateKey": "${GDRIVE_PRIVATE_KEY}",
+    "scopes": ["${GDRIVE_SCOPES}"]
+  }
+}

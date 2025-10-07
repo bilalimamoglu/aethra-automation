@@ -1,0 +1,14 @@
+{
+  "id": "${S3_MINIO_ID}",
+  "name": "Aethra S3 (MinIO Local)",
+  "type": "s3",
+  "nodesAccess": [{ "nodeType": "n8n-nodes-base.s3" }],
+  "data": {
+    "accessKeyId": "${MINIO_ROOT_USER}",
+    "secretAccessKey": "${MINIO_ROOT_PASSWORD}",
+    "region": "${MINIO_REGION}",
+    "bucketName": "${MINIO_BUCKET}",
+    "forcePathStyle": true,
+    "endpoint": "${MINIO_ENDPOINT}"
+  }
+}

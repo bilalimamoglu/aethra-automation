@@ -1,0 +1,14 @@
+{
+  "id": "${POSTGRES_CRED_ID}",
+  "name": "Aethra Postgres (Local)",
+  "type": "postgres",
+  "nodesAccess": [{ "nodeType": "n8n-nodes-base.postgres" }],
+  "data": {
+    "user": "${POSTGRES_USER}",
+    "password": "${POSTGRES_PASSWORD}",
+    "database": "${POSTGRES_DB}",
+    "host": "${POSTGRES_HOST}",
+    "port": ${POSTGRES_PORT},
+    "ssl": false
+  }
+}

@@ -1,62 +1,85 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "[seed] Waiting for Postgres..."
+log() { echo "[seed] $*"; }
+
+# --- Wait for Postgres ---
+log "Waiting for Postgres..."
 until PGPASSWORD="$DB_POSTGRESDB_PASSWORD" psql \
   -h "$DB_POSTGRESDB_HOST" -p "$DB_POSTGRESDB_PORT" \
   -U "$DB_POSTGRESDB_USER" -d "$DB_POSTGRESDB_DATABASE" -c "select 1" >/dev/null 2>&1; do
   sleep 2
 done
-echo "[seed] Postgres is up."
+log "Postgres is up."
 
-# Wait until the instance owner is created via the initial signup screen.
-echo "[seed] Waiting for n8n owner setup to complete..."
+# --- Wait for n8n owner setup ---
+log "Waiting for n8n owner setup to complete..."
 while true; do
   STATUS=$(PGPASSWORD="$DB_POSTGRESDB_PASSWORD" psql \
     -h "$DB_POSTGRESDB_HOST" -p "$DB_POSTGRESDB_PORT" \
     -U "$DB_POSTGRESDB_USER" -d "$DB_POSTGRESDB_DATABASE" -t -A -c \
     "select value from settings where key='userManagement.isInstanceOwnerSetUp';" | tr -d '[:space:]')
-  if [[ "$STATUS" == "true" ]]; then
-    echo "[seed] Owner setup detected. Proceeding."
-    break
-  fi
+  [[ "$STATUS" == "true" ]] && { log "Owner setup detected."; break; }
   sleep 3
 done
 
-# Ensure MinIO is live.
-echo "[seed] Waiting for MinIO..."
-until curl -sf http://minio:9000/minio/health/live >/dev/null 2>&1; do
-  sleep 2
-done
-echo "[seed] MinIO is up."
-
-# Ensure target bucket exists.
-echo "[seed] Ensuring MinIO bucket..."
+# --- Wait MinIO & ensure bucket ---
+log "Waiting for MinIO..."
+until curl -sf http://minio:9000/minio/health/live >/dev/null 2>&1; do sleep 2; done
+log "MinIO is up."
+log "Ensuring MinIO bucket..."
 mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null
 mc mb --ignore-existing "local/$MINIO_BUCKET" || true
-echo "[seed] Bucket ensured: $MINIO_BUCKET"
+log "Bucket ensured: $MINIO_BUCKET"
 
-# Bind imported credentials to the owner user so the UI doesn't show "Needs first setup".
+# --- Resolve n8n owner id ---
 OWNER_ID=$(PGPASSWORD="$DB_POSTGRESDB_PASSWORD" psql \
   -h "$DB_POSTGRESDB_HOST" -p "$DB_POSTGRESDB_PORT" \
   -U "$DB_POSTGRESDB_USER" -d "$DB_POSTGRESDB_DATABASE" -t -A -c \
   "select id from \"user\" where email='${N8N_OWNER_EMAIL}' limit 1;" | tr -d '[:space:]')
+[[ -z "${OWNER_ID}" ]] && { echo "[seed] ERROR: owner not found: ${N8N_OWNER_EMAIL}" >&2; exit 1; }
 
-if [[ -z "${OWNER_ID}" ]]; then
-  echo "[seed] ERROR: Could not resolve owner ID for ${N8N_OWNER_EMAIL}" >&2
-  exit 1
+# --- Render templates with envsubst ---
+render_dir() {
+  local src_dir="$1"; local dst_dir="$2"
+  mkdir -p "$dst_dir"
+  shopt -s nullglob
+
+  # Whitelist: only substitute our own env vars; leave $json/$node/$now untouched
+  local ALLOWED_VARS
+  ALLOWED_VARS=$(env | awk -F= '/^(GDRIVE_|GOOGLE_OAUTH_|POSTGRES_|MINIO_|N8N_|S3_)/ {printf " ${%s}", $1}')
+
+  for tmpl in "$src_dir"/*.tmpl; do
+    local base="$(basename "$tmpl" .tmpl)"
+    envsubst "$ALLOWED_VARS" < "$tmpl" > "$dst_dir/$base"
+    log "Rendered: $base"
+  done
+}
+
+
+CRED_TEMPLATES="/seed/credentials-templates"
+WF_TEMPLATES="/seed/workflows-templates"
+RENDERED_CREDS="/tmp/rendered/credentials"
+RENDERED_WF="/tmp/rendered/workflows"
+
+
+# Load private key from file if defined
+if [[ -n "${GDRIVE_PRIVATE_KEY_FILE:-}" && -f "$GDRIVE_PRIVATE_KEY_FILE" ]]; then
+  export GDRIVE_PRIVATE_KEY="$(cat "$GDRIVE_PRIVATE_KEY_FILE")"
+  echo "[seed] Loaded GDRIVE_PRIVATE_KEY from $GDRIVE_PRIVATE_KEY_FILE"
 fi
 
-# Import credentials (each file is a single JSON object with a fixed ID).
-if [ -d /seed/credentials ]; then
-  echo "[seed] Importing credentials..."
-  n8n import:credentials --input "/seed/credentials" --separate --userId "$OWNER_ID" || true
-fi
+log "Rendering credentials from env..."
+render_dir "$CRED_TEMPLATES" "$RENDERED_CREDS"
 
-# Import workflows (each file is a single workflow JSON).
-if [ -d /seed/workflows ]; then
-  echo "[seed] Importing workflows..."
-  n8n import:workflow --input "/seed/workflows" --separate || true
-fi
+log "Rendering workflows from env..."
+render_dir "$WF_TEMPLATES" "$RENDERED_WF"
 
-echo "[seed] ✅ Done."
+# --- Import rendered credentials & workflows ---
+log "Importing credentials..."
+n8n import:credentials --input "$RENDERED_CREDS" --separate --userId "$OWNER_ID" || true
+
+log "Importing workflows..."
+n8n import:workflow --input "$RENDERED_WF" --separate || true
+
+log "✅ Done."
